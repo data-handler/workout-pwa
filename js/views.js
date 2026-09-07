@@ -16,10 +16,11 @@ const Views = (() => {
       preview = `<p>Blank workout — add exercises once you start.</p>`;
     } else if (selRoutine) {
       const exercises = DB.getExercises();
-      preview = selRoutine.exercises.map((re) => {
+      const rows = selRoutine.exercises.map((re) => {
         const ex = exercises.find((e) => e.id === re.exerciseId);
         return `<div class="history-ex"><span class="name">${esc(ex ? ex.name : 'Unknown exercise')}</span><span class="sets">${re.sets}×${re.reps}</span></div>`;
       }).join('') || '<p>No exercises in this routine yet — add some in the Routines tab.</p>';
+      preview = (selRoutine.note ? `<p style="margin-bottom:8px">${esc(selRoutine.note)}</p>` : '') + rows;
     } else {
       preview = '';
     }
@@ -52,6 +53,7 @@ const Views = (() => {
         <div><h1>${esc(session.routineName)}</h1><div class="sub">${fmtDateLong(session.date)}</div></div>
         <button class="btn ghost sm" data-action="cancel-workout">Cancel</button>
       </div>
+      ${session.routineNote ? `<p style="margin-top:-8px">${esc(session.routineNote)}</p>` : ''}
       ${blocks || '<p class="empty">No exercises yet — add one below.</p>'}
       <button class="add-set-btn" data-action="open-add-exercise-to-session">+ Add Exercise</button>
       <button class="btn primary block" style="margin-top:14px" data-action="finish-workout">Finish Workout</button>
@@ -83,6 +85,7 @@ const Views = (() => {
         <div class="ex-head">
           <div>
             <div class="ex-name">${esc(ex.name)}</div>
+            ${ex.note ? `<div class="ex-meta">${esc(ex.note)}</div>` : ''}
             <div class="ex-last">${lastLine}</div>
           </div>
           <button class="swipe-del" data-action="remove-exercise-from-session" data-exi="${exi}">✕</button>
@@ -149,6 +152,7 @@ const Views = (() => {
           <div class="info">
             <div class="name">${ex ? esc(ex.name) : 'Unknown exercise'}</div>
             <div class="tag">${ex ? esc(ex.equipment) : ''}</div>
+            ${re.note ? `<div class="tag" style="margin-top:2px">${esc(re.note)}</div>` : ''}
           </div>
           <div class="row" style="align-items:center;gap:4px">
             <input type="number" style="width:42px;padding:6px 4px" value="${re.sets}" data-bind="routine-ex-sets" data-rid="${r.id}" data-i="${i}">
@@ -168,6 +172,7 @@ const Views = (() => {
           <input class="grow" style="font-weight:700;background:transparent;border:none;padding:6px 0;font-size:1.05rem" value="${esc(r.name)}" data-bind="routine-name" data-rid="${r.id}">
           <button class="swipe-del" data-action="delete-routine" data-rid="${r.id}">✕</button>
         </div>
+        ${r.note ? `<p style="margin-top:0">${esc(r.note)}</p>` : ''}
         ${items || '<p style="margin-top:4px">No exercises yet.</p>'}
         <button class="add-set-btn" data-action="open-add-exercise-to-routine" data-rid="${r.id}">+ Add Exercise</button>
       </div>

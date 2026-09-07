@@ -29,6 +29,24 @@ const App = (() => {
     if (changed) DB.setExercises(exercises);
   }
 
+  // One-time: swap the placeholder push/pull/legs split for the real
+  // "Custom Home Gym Hypertrophy Plan" 3-workout routine, and refresh the
+  // handful of library exercises it uses with the plan's names/starting
+  // weights. Runs once per browser; leaves custom exercises and history alone.
+  const PLAN_FLAG = 'wlog.hypertrophy_plan_v1';
+  function applyDefaultPlan() {
+    if (localStorage.getItem(PLAN_FLAG)) return;
+    const exercises = DB.getExercises();
+    DEFAULT_EXERCISES.forEach((def) => {
+      const existing = exercises.find((e) => e.id === def.id);
+      if (existing) Object.assign(existing, def);
+      else exercises.push({ ...def });
+    });
+    DB.setExercises(exercises);
+    DB.setRoutines(DEFAULT_ROUTINES.map((r) => ({ ...r, exercises: r.exercises.map((e) => ({ ...e })) })));
+    localStorage.setItem(PLAN_FLAG, '1');
+  }
+
   function currentRoute() {
     const h = location.hash.replace('#/', '');
     return ['today', 'history', 'routines', 'exercises', 'settings'].includes(h) ? h : 'today';
@@ -77,7 +95,7 @@ const App = (() => {
         const target = Util.computeNextTarget(ex || {}, last, re.reps);
         const sets = [];
         for (let i = 0; i < re.sets; i++) sets.push({ weight: target.weight, reps: target.reps, done: false });
-        return { exerciseId: re.exerciseId, name: ex ? ex.name : 'Unknown exercise', sets, difficulty: null };
+        return { exerciseId: re.exerciseId, name: ex ? ex.name : 'Unknown exercise', note: re.note || null, sets, difficulty: null };
       });
     }
 
@@ -85,6 +103,7 @@ const App = (() => {
       id: DB.uid('sess'),
       routineId: routine ? routine.id : null,
       routineName,
+      routineNote: routine ? routine.note || null : null,
       date: Util.todayISO(),
       startedAt: new Date().toISOString(),
       exercises: sessionExercises,
@@ -460,6 +479,7 @@ const App = (() => {
   function init() {
     seedIfNeeded();
     migrateExercises();
+    applyDefaultPlan();
     document.getElementById('app').addEventListener('click', onClick);
     document.getElementById('app').addEventListener('input', onInput);
     document.getElementById('app').addEventListener('change', onChange);
