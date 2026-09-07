@@ -70,18 +70,30 @@ const Views = (() => {
       </div>
     `).join('');
 
+    const lastLine = last
+      ? `Last (${fmtDateShort(last.date)}): ${fmtSets(last.sets)}${last.difficulty ? ` · felt: ${Util.DIFFICULTY_LABELS[last.difficulty]}` : ''}`
+      : 'No previous data';
+
+    const diffChips = ['easy', 'good', 'hard'].map((v) => `
+      <button class="chip ${ex.difficulty === v ? 'on' : ''}" data-action="set-difficulty" data-exi="${exi}" data-value="${v}">${esc(Util.DIFFICULTY_LABELS[v])}</button>
+    `).join('');
+
     return `
       <div class="exercise-block">
         <div class="ex-head">
           <div>
             <div class="ex-name">${esc(ex.name)}</div>
-            <div class="ex-last">${last ? `Last (${fmtDateShort(last.date)}): ${fmtSets(last.sets)}` : 'No previous data'}</div>
+            <div class="ex-last">${lastLine}</div>
           </div>
           <button class="swipe-del" data-action="remove-exercise-from-session" data-exi="${exi}">✕</button>
         </div>
         <div class="set-row header"><div></div><div>kg</div><div>reps</div><div>done</div><div></div></div>
         ${setsHtml}
         <button class="add-set-btn" data-action="add-set" data-exi="${exi}">+ Add set</button>
+        <div class="field" style="margin:10px 0 0">
+          <label>How did this feel? (adjusts next time)</label>
+          <div class="chip-select" style="margin-bottom:0">${diffChips}</div>
+        </div>
       </div>
     `;
   }
@@ -180,7 +192,7 @@ const Views = (() => {
           <div class="ex-list-item">
             <div class="info" style="cursor:pointer" data-action="edit-exercise" data-id="${ex.id}">
               <div class="name">${esc(ex.name)}</div>
-              <div class="tag">${esc(ex.equipment)} · default ${ex.sets}×${ex.reps}</div>
+              <div class="tag">${esc(ex.equipment)} · default ${ex.sets}×${ex.reps}${ex.startWeight != null ? ` · start ${ex.startWeight}kg` : ''}</div>
             </div>
             <button class="swipe-del" data-action="delete-exercise" data-id="${ex.id}">✕</button>
           </div>
@@ -292,6 +304,17 @@ const Views = (() => {
             <input type="number" data-bind="modal-reps" value="${m.draft.reps}">
           </div>
         </div>
+        <div class="row">
+          <div class="field grow">
+            <label>Starting weight (kg)</label>
+            <input type="number" step="0.5" placeholder="blank" data-bind="modal-startweight" value="${m.draft.startWeight ?? ''}">
+          </div>
+          <div class="field grow">
+            <label>${m.draft.equipment === 'Bodyweight' ? 'Rep step' : 'Weight step (kg)'}</label>
+            <input type="number" step="0.5" data-bind="modal-increment" value="${m.draft.increment ?? ''}">
+          </div>
+        </div>
+        <p style="margin-top:-4px">Used only before you've logged this exercise. After that, weight/reps are suggested from last time — nudged up or down by how it felt.${m.draft.equipment === 'Dumbbell' ? ' Dumbbell suggestions snap to your actual pairs (1/3/5/10/15/20kg).' : ''}</p>
         <div class="row">
           <button class="btn ghost grow" data-action="close-modal">Cancel</button>
           <button class="btn primary grow" data-action="save-exercise-form">Save</button>

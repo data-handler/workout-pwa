@@ -17,6 +17,18 @@ const App = (() => {
     DB.setSeeded();
   }
 
+  // Backfills fields added after initial release (startWeight/increment) onto
+  // exercises already saved in someone's browser, without touching their edits.
+  function migrateExercises() {
+    const exercises = DB.getExercises();
+    let changed = false;
+    exercises.forEach((ex) => {
+      if (ex.startWeight === undefined) { ex.startWeight = null; changed = true; }
+      if (ex.increment === undefined) { ex.increment = ex.equipment === 'Bodyweight' ? 2 : 2.5; changed = true; }
+    });
+    if (changed) DB.setExercises(exercises);
+  }
+
   function currentRoute() {
     const h = location.hash.replace('#/', '');
     return ['today', 'history', 'routines', 'exercises', 'settings'].includes(h) ? h : 'today';
@@ -62,12 +74,10 @@ const App = (() => {
       sessionExercises = routine.exercises.map((re) => {
         const ex = exercises.find((e) => e.id === re.exerciseId);
         const last = Util.findLastSets(re.exerciseId, sessions);
+        const target = Util.computeNextTarget(ex || {}, last, re.reps);
         const sets = [];
-        for (let i = 0; i < re.sets; i++) {
-          const lastSet = last && last.sets[i];
-          sets.push({ weight: lastSet ? lastSet.weight : null, reps: re.reps ?? null, done: false });
-        }
-        return { exerciseId: re.exerciseId, name: ex ? ex.name : 'Unknown exercise', sets };
+        for (let i = 0; i < re.sets; i++) sets.push({ weight: target.weight, reps: target.reps, done: false });
+        return { exerciseId: re.exerciseId, name: ex ? ex.name : 'Unknown exercise', sets, difficulty: null };
       });
     }
 
@@ -98,9 +108,11 @@ const App = (() => {
     if (!active) return;
     const ex = DB.getExercises().find((e) => e.id === exerciseId);
     if (!ex) return;
+    const last = Util.findLastSets(exerciseId, DB.getSessions());
+    const target = Util.computeNextTarget(ex, last, ex.reps);
     const sets = [];
-    for (let i = 0; i < ex.sets; i++) sets.push({ weight: null, reps: ex.reps ?? null, done: false });
-    active.exercises.push({ exerciseId: ex.id, name: ex.name, sets });
+    for (let i = 0; i < ex.sets; i++) sets.push({ weight: target.weight, reps: target.reps, done: false });
+    active.exercises.push({ exerciseId: ex.id, name: ex.name, sets, difficulty: null });
     DB.setActive(active);
   }
 
@@ -203,6 +215,15 @@ const App = (() => {
         return render();
       }
 
+      case 'set-difficulty': {
+        const active = DB.getActive();
+        const exi = +el.dataset.exi;
+        const cur = active.exercises[exi].difficulty;
+        active.exercises[exi].difficulty = cur === el.dataset.value ? null : el.dataset.value;
+        DB.setActive(active);
+        return render();
+      }
+
       case 'toggle-set-done': {
         const active = DB.getActive();
         const st = active.exercises[+el.dataset.exi].sets[+el.dataset.si];
@@ -263,7 +284,7 @@ const App = (() => {
         return render();
 
       case 'add-exercise':
-        ui.modal = { type: 'exercise-form', draft: { name: '', equipment: 'Barbell', sets: 3, reps: 10 } };
+        ui.modal = { type: 'exercise-form', draft: { name: '', equipment: 'Barbell', sets: 3, reps: 10, startWeight: null, increment: 2.5 } };
         return render();
 
       case 'edit-exercise': {
@@ -344,11 +365,12 @@ const App = (() => {
         const name = d.name.trim();
         if (!name) { alert('Please enter a name.'); return; }
         const exercises = DB.getExercises();
+        const fields = { name, equipment: d.equipment, sets: d.sets || 3, reps: d.reps || 10, startWeight: d.startWeight, increment: d.increment || (d.equipment === 'Bodyweight' ? 2 : 2.5) };
         if (ui.modal.editingId) {
           const ex = exercises.find((e) => e.id === ui.modal.editingId);
-          Object.assign(ex, { name, equipment: d.equipment, sets: d.sets, reps: d.reps });
+          Object.assign(ex, fields);
         } else {
-          exercises.push({ id: DB.uid('ex'), name, equipment: d.equipment, sets: d.sets || 3, reps: d.reps || 10 });
+          exercises.push({ id: DB.uid('ex'), ...fields });
         }
         DB.setExercises(exercises);
         ui.modal = null;
@@ -400,6 +422,12 @@ const App = (() => {
       case 'modal-reps':
         ui.modal.draft.reps = parseInt(el.value, 10) || 0;
         return;
+      case 'modal-startweight':
+        ui.modal.draft.startWeight = el.value === '' ? null : Number(el.value);
+        return;
+      case 'modal-increment':
+        ui.modal.draft.increment = el.value === '' ? null : Number(el.value);
+        return;
     }
   }
 
@@ -431,6 +459,7 @@ const App = (() => {
 
   function init() {
     seedIfNeeded();
+    migrateExercises();
     document.getElementById('app').addEventListener('click', onClick);
     document.getElementById('app').addEventListener('input', onInput);
     document.getElementById('app').addEventListener('change', onChange);

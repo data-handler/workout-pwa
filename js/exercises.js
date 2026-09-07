@@ -63,3 +63,15 @@ const DEFAULT_EXERCISES = [
 ];
 
 const EQUIPMENT_TYPES = ['Barbell', 'Dumbbell', 'Cable', 'Landmine', 'Bodyweight'];
+
+// The only weights this dumbbell exercises can actually use — auto-progression
+// snaps to the next/previous value here instead of adding an arbitrary kg step.
+const DUMBBELL_WEIGHTS = [1, 3, 5, 10, 15, 20];
+
+// startWeight: prefilled the very first time an exercise is logged (before any
+// history exists) — null means "leave it blank". increment: how much
+// auto-progression moves weight (or reps, for Bodyweight moves) per step.
+DEFAULT_EXERCISES.forEach((ex) => {
+  if (ex.startWeight === undefined) ex.startWeight = null;
+  if (ex.increment === undefined) ex.increment = ex.equipment === 'Bodyweight' ? 2 : 2.5;
+});
