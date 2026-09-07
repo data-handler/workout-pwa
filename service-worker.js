@@ -1,4 +1,4 @@
-const CACHE_NAME = 'workout-log-v1';
+const CACHE_NAME = 'workout-log-v2';
 const APP_SHELL = [
   './',
   './index.html',
@@ -30,20 +30,19 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Network-first: always try to get the freshest copy (this app gets pushed
+// updates often), falling back to the cache only when there's no connection.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((response) => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
