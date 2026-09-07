@@ -16,7 +16,10 @@
 }
 
 *{box-sizing:border-box;}
-html,body{height:100%;}
+/* min-height, not height: a tall workout needs to grow past one screen and
+   scroll so its bottom padding (which clears the fixed tab bar) actually
+   lands after the content instead of the content overflowing through it. */
+html,body{min-height:100%;}
 body{
   margin:0;
   background:var(--bg);
